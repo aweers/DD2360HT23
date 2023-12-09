@@ -1,4 +1,4 @@
-
+%%writefile lab2_ex1.cu
 #include <stdio.h>
 #include <sys/time.h>
 #include <random>
@@ -11,13 +11,17 @@ __global__ void histogram_kernel(unsigned int *input, unsigned int *bins,
                                  unsigned int num_bins) {
   //@@ Insert code below to compute histogram of input using shared memory and atomics
   int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if(i >= num_elements) return;
+  __syncthreads();
   atomicAdd(&bins[input[i]], 1);
+  __syncthreads();
 }
 
 __global__ void convert_kernel(unsigned int *bins, unsigned int num_bins) {
   //@@ Insert code below to clean up bins that saturate at 127
   int i = blockIdx.x * blockDim.x + threadIdx.x;
-  atomicMin(&bins[i], 127);
+  if(i < num_bins)
+    atomicMin(&bins[i], 127);
 }
 
 
@@ -38,14 +42,12 @@ int main(int argc, char **argv) {
   printf("The input length is %d\n", inputLength);
   
   //@@ Insert code below to allocate Host memory for input and output
-  // Host memory
   hostInput = (unsigned int*) malloc(inputLength * sizeof(unsigned int));
   hostBins = (unsigned int*) malloc(NUM_BINS * sizeof(unsigned int));
   resultRef = (unsigned int*) malloc(NUM_BINS * sizeof(unsigned int));
 
   
   //@@ Insert code below to initialize hostInput to random numbers whose values range from 0 to (NUM_BINS - 1)
-  // hostInput initialize with random numbers
   for(int i = 0; i < inputLength; i++){
     hostInput[i] = rand() % NUM_BINS;
   }
@@ -55,9 +57,12 @@ int main(int argc, char **argv) {
   for(int i = 0; i < NUM_BINS; i++){
     resultRef[i] = 0;
   }
-  for(int i = 0; i < inputLength; i++){
-    if(resultRef[hostInput[i]] < 127)
-      resultRef[hostInput[i]]++;
+  for(int i = 0; i < inputLength; i++) {
+    resultRef[hostInput[i]]++;
+  }
+  for(int i = 0; i < NUM_BINS; i++) {
+    if(resultRef[i] > 127)
+        resultRef[i] = 127;
   }
 
 
@@ -90,6 +95,7 @@ int main(int argc, char **argv) {
 
   //@@ Launch the second GPU Kernel here
   convert_kernel<<<DimGrid2, DimBlock2>>>(deviceBins, NUM_BINS);
+  cudaDeviceSynchronize();
 
 
   //@@ Copy the GPU memory back to the CPU here
@@ -97,10 +103,25 @@ int main(int argc, char **argv) {
 
 
   //@@ Insert code below to compare the output with the reference
-  for(int i = 0; i < inputLength; ++i) {
+  for(int i = 0; i < NUM_BINS; ++i) {
     if(hostBins[i] != resultRef[i]) {
       printf("Mismatch at index %d, host is %d, ref is %d\n", i, hostBins[i], resultRef[i]);
       break;
+    }
+  }
+
+  if(inputLength < 100) {
+    printf("Input:\n");
+    for(int i = 0; i < inputLength; ++i) {
+      printf("%d ", hostInput[i]);
+    }
+    printf("\n");
+
+    // print differences
+    for(int i = 0; i < NUM_BINS; ++i) {
+      if(hostBins[i] != resultRef[i]) {
+        printf("Mismatch at index %d, host is %d, ref is %d\n", i, hostBins[i], resultRef[i]);
+      }
     }
   }
 
