@@ -12,9 +12,7 @@ __global__ void histogram_kernel(unsigned int *input, unsigned int *bins,
   //@@ Insert code below to compute histogram of input using shared memory and atomics
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if(i >= num_elements) return;
-  __syncthreads();
   atomicAdd(&bins[input[i]], 1);
-  __syncthreads();
 }
 
 __global__ void convert_kernel(unsigned int *bins, unsigned int num_bins) {
@@ -95,7 +93,6 @@ int main(int argc, char **argv) {
 
   //@@ Launch the second GPU Kernel here
   convert_kernel<<<DimGrid2, DimBlock2>>>(deviceBins, NUM_BINS);
-  cudaDeviceSynchronize();
 
 
   //@@ Copy the GPU memory back to the CPU here
