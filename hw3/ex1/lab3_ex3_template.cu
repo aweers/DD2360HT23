@@ -10,9 +10,27 @@ __global__ void histogram_kernel(unsigned int *input, unsigned int *bins,
                                  unsigned int num_elements,
                                  unsigned int num_bins) {
   //@@ Insert code below to compute histogram of input using shared memory and atomics
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if(i >= num_elements) return;
-  atomicAdd(&bins[input[i]], 1);
+  const int s_idx = threadIdx.x;
+
+  __shared__ unsigned int bins_shared[NUM_BINS];
+
+  if(s_idx == 0) {
+    for(int i = 0; i < NUM_BINS; ++i) {
+      bins_shared[i] = 0;
+    }
+  }
+  __syncthreads();
+
+  atomicAdd(&bins_shared[input[i]], 1);
+  __syncthreads();
+
+  if(s_idx == 0) {
+    for(int i = 0; i < NUM_BINS; ++i) {
+      atomicAdd(&bins[i], bins_shared[i]);
+    }
+  }
 }
 
 __global__ void convert_kernel(unsigned int *bins, unsigned int num_bins) {
