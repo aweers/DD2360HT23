@@ -5,30 +5,33 @@
 
 #define NUM_BINS 4096
 #define TPB 128
+#define STRIPE 32
 
 __global__ void histogram_kernel(unsigned int *input, unsigned int *bins,
-                                 unsigned int num_elements,
-                                 unsigned int num_bins) {
-  //@@ Insert code below to compute histogram of input using shared memory and atomics
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if(i >= num_elements) return;
-  const int s_idx = threadIdx.x;
+  unsigned int num_elements,
+  unsigned int num_bins) {
+  const int i = blockIdx.x * blockDim.x * STRIPE + threadIdx.x;
+  __shared__ unsigned int private_histo[NUM_BINS];
 
-  __shared__ unsigned int bins_shared[NUM_BINS];
-
-  if(s_idx == 0) {
-    for(int i = 0; i < NUM_BINS; ++i) {
-      bins_shared[i] = 0;
+  if(threadIdx.x == 0) {
+    for(int j = 0; j < NUM_BINS; ++j) {
+      private_histo[j] = 0;
     }
   }
   __syncthreads();
 
-  atomicAdd(&bins_shared[input[i]], 1);
+  for(int j = 0; j < STRIPE; ++j) {
+    int index = i + j * blockDim.x;
+    if(index < num_elements) {
+      atomicAdd(&(private_histo[input[index]]), 1);
+    }
+  }
   __syncthreads();
 
-  if(s_idx == 0) {
-    for(int i = 0; i < NUM_BINS; ++i) {
-      atomicAdd(&bins[i], bins_shared[i]);
+  // Merge private histograms into global histogram
+  if(threadIdx.x == 0) {
+    for(int j = 0; j < NUM_BINS; ++j) {
+      atomicAdd(&(bins[j]), private_histo[j]);
     }
   }
 }
@@ -95,14 +98,13 @@ int main(int argc, char **argv) {
   cudaMemset(deviceBins, 0, NUM_BINS * sizeof(unsigned int));
 
 
+  // Pass a stripe to each kernel
   //@@ Initialize the grid and block dimensions here
-  dim3 DimGrid((inputLength+TPB-1)/TPB, 1, 1);
-  dim3 DimBlock(TPB, 1, 1);
-
+  dim3 DimGrid((inputLength + STRIPE*TPB - 1) / (STRIPE*TPB));
+  dim3 DimBlock(TPB);
 
   //@@ Launch the GPU Kernel here
   histogram_kernel<<<DimGrid, DimBlock>>>(deviceInput, deviceBins, inputLength, NUM_BINS);
-
 
   //@@ Initialize the second grid and block dimensions here
   dim3 DimGrid2((NUM_BINS+TPB-1)/TPB, 1, 1);
@@ -153,4 +155,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
