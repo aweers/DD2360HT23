@@ -98,7 +98,7 @@ int mover_PC(struct particles* part, struct EMfield* field, struct grid* grd, st
     
     printf("before kernel:\n");
     for (int i = 0; i < 10; i++)
-        printf("part %d at %.10f, %.10f, %.10f\n", i, part->x[100 + i], part->y[100 + i], part->z[100 + i]);
+        printf("part %d at %.10f, %.10f, %.10f\n", i + 159000, part->x[159000 + i], part->y[159000 + i], part->z[159000 + i]);
 
     // start subcycling
     for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
@@ -237,7 +237,7 @@ int mover_PC(struct particles* part, struct EMfield* field, struct grid* grd, st
     } // end of one particle
     printf("\nafter kernel:\n");
     for (int i = 0; i < 10; i++)
-        printf("part %d at %.10f, %.10f, %.10f\n", i, part->x[100 + i], part->y[100 + i], part->z[100 + i]);                                                                    
+        printf("part %d at %.10f, %.10f, %.10f\n", i + 159000, part->x[159000 + i], part->y[159000 + i], part->z[159000 + i]);                                                                    
     return(0); // exit succcesfully
 } // end of the mover
 
@@ -461,7 +461,7 @@ int mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd
 
     printf("before kernel:\n");
     for (int i = 0; i < 10; i++)
-        printf("part %d at %.10f, %.10f, %.10f\n", i, part->x[100 + i], part->y[100 + i], part->z[100 + i]);
+        printf("part %d at %.10f, %.10f, %.10f\n", i + 159000, part->x[159000 + i], part->y[159000 + i], part->z[159000 + i]);
 
     // start subcycling
     for (int i_sub=0; i_sub <  part->n_sub_cycles; i_sub++){
@@ -479,7 +479,7 @@ int mover_PC_gpu(struct particles* part, struct EMfield* field, struct grid* grd
     
     printf("\nafter kernel:\n");
     for (int i = 0; i < 10; i++)
-        printf("part %d at %.10f, %.10f, %.10f\n", i, part->x[100 + i], part->y[100 + i], part->z[100 + i]);
+        printf("part %d at %.10f, %.10f, %.10f\n", i + 159000, part->x[159000 + i], part->y[159000 + i], part->z[159000 + i]);
 
     std::cout << "Freeing GPU memory" << std::endl;
     cudaFree(field_d2->Ex_flat);
